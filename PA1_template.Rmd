@@ -8,18 +8,154 @@ output:
 
 ## Loading and preprocessing the data
 
+```{r}
+library(tidyverse)
+library(lubridate)
+
+df<-read.csv("activity.csv") ## read the data into R
+
+df$date <-ymd(df$date) ## change the date type from charcter into date.
+```
 
 
 ## What is mean total number of steps taken per day?
 
+```{r}
 
+## The mean steps for the total steps taken per day 
+na.omit(df) %>%  
+  group_by(date) %>% 
+  summarise(Sum = sum(steps)) %>% 
+  select(2) %>% 
+  apply(2,mean)
+
+## The median steps for the total steps taken per day 
+na.omit(df) %>%  
+  group_by(date) %>% 
+  summarise(Sum = sum(steps)) %>% 
+  select(2) %>% 
+  apply(2,median)
+
+```
+
+
+## Histogram of the total number of steps taken each day
+
+
+```{r}
+na.omit(df) %>% 
+  group_by(date) %>% 
+  summarise(Steps = sum(steps)) %>% 
+  ggplot()+
+  geom_histogram( aes( x =  Steps ),color = "black", fill= "white", bins = 30)+
+  labs(title = "Total number of steps taken each day",
+       subtitle = "October,2 to November,29")+
+  ylab("Frequency")
+```
+
+  
 
 ## What is the average daily activity pattern?
 
+```{r}
+
+na.omit(df) %>% 
+  group_by(interval) %>% 
+  summarise(Average = mean(steps)) %>% 
+  ggplot()+
+  geom_line(aes(x=interval , y = Average ))+
+  scale_x_continuous(breaks =  seq(5, max(df$interval),by= 50))+
+  xlab ("Interval in minutes / day ( 5 :   ")+
+  labs(title = "What is the average daily activity pattern?",
+       subtitle = "Time series 5 min through the day")+
+  theme(axis.text.x = element_text(angle = 90))
+
+
+
+```
 
 
 ## Imputing missing values
 
+```{r}
+## The total number of missing values in the dataset
+
+length(which(is.na(df)))
+
+df %>% 
+  filter(is.na(.)) %>%
+  nrow()
+
+```
+
+
+```{r}
+## Filling in all of the missing values in the dataset.
+
+## 1. filling NA with the mean for 5-minute interval
+
+df2<-df %>% 
+  filter(is.na(.)) %>% 
+  select(2,3) %>% 
+  left_join( summarise(group_by(na.omit(df), interval), steps = mean(steps)), "interval")%>%   select(3,1,2) %>% 
+  bind_rows(na.omit(df)) %>% 
+  arrange(date,interval)
+    
+
+```
+
+```{r}
+## 2. The mean steps for the total steps taken per day in new data set
+df2 %>%  
+  group_by(date) %>% 
+  summarise(Sum = sum(steps)) %>% 
+  select(2) %>% 
+  apply(2,mean)
+
+## 3. The median steps for the total steps taken per day 
+df2 %>%  
+  group_by(date) %>% 
+  summarise(Sum = sum(steps)) %>% 
+  select(2) %>% 
+  apply(2,median)
+```
+
+
+**Mean and median are almost the same for two data sets**
+
+```{r}
+
+# 4. Histogram of the total number of steps taken each day [filled NA]
+
+df2 %>% 
+  group_by(date) %>% 
+  summarise(Steps = sum(steps)) %>% 
+  ggplot()+
+  geom_histogram( aes( x =  Steps ),color = "black", fill= "white", bins = 30)+
+  labs(title = "Total number of steps taken each day / Filled NA",
+       subtitle = "October,2 to November,29")+
+  ylab("Frequency")
+```
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+
+
+```{r}
+df2 %>% 
+  mutate ( 
+     DayType = case_when( weekdays(date) %in% c("Monday","Tuesday","Wednesday","Thursday", "Friday") ~ "Weekday",
+                          weekdays(date) %in% c("Saturday","Sunday")~ "Weekend")) %>% 
+    group_by(interval, DayType) %>% 
+  summarise(Average = mean(steps)) %>% 
+  ggplot()+
+  geom_line(aes(x=interval , y = Average ))+
+  scale_x_continuous(breaks =  seq(5, max(df$interval),by= 50))+
+  xlab ("Interval in minutes / day ")+
+  facet_wrap(~ DayType, nrow = 2)+
+  labs(title = "The differences in activity patterns between weekdays and weekends",
+       subtitle = "Time series 5 min through the day")+
+  theme(axis.text.x = element_text(angle = 90))
+
+  ```
